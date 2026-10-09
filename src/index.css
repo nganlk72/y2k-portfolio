@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&family=Be+Vietnam+Pro:wght@400;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
 @import "tailwindcss";
 
 @theme {
@@ -15,8 +15,8 @@ body {
   background-color: #18181b; /* bg-zinc-900 */
   color: white;
   overflow: hidden;
-  font-family: 'VT323', monospace;
-  font-size: 1.25rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 1.125rem; /* Equivalent to text-lg to match original About_Me */
   cursor: url('https://cur.cursors-4u.net/games/gam-4/gam372.cur'), auto !important;
 }
 

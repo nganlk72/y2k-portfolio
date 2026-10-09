@@ -7,14 +7,14 @@ function App() {
   const [time, setTime] = useState(new Date());
   const [lang, setLang] = useState('EN'); // 'EN' or 'VI'
   const [windows, setWindows] = useState({
-    about: true,
-    resume: false,
-    contact: false,
+    about: { open: true, minimized: false },
+    resume: { open: false, minimized: false },
+    contact: { open: false, minimized: false },
   });
 
-  // Resume Sections State
+  // Resume Sections State - collapsed by default
   const [resumeExpanded, setResumeExpanded] = useState({
-    edu: true,
+    edu: false,
     exp: false,
     skills: false
   });
@@ -26,13 +26,47 @@ function App() {
   const [contactMsg, setContactMsg] = useState('');
   const [isSending, setIsSending] = useState(false);
 
+  // When language changes, update Admin's first message if they haven't sent anything else
+  useEffect(() => {
+    if (contactChat.length === 1 && contactChat[0].sender === 'Admin') {
+       setContactChat([{ sender: 'Admin', text: lang === 'EN' ? 'Hello! How can I help you?' : 'Chào bạn! Mình có thể giúp gì cho bạn?' }]);
+    }
+  }, [lang]);
+
   useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
 
-  const toggleWindow = (win) => {
-    setWindows(prev => ({ ...prev, [win]: !prev[win] }));
+  const openWindow = (win) => {
+    setWindows(prev => ({ 
+      ...prev, 
+      [win]: { open: true, minimized: false } 
+    }));
+  };
+
+  const closeWindow = (win) => {
+    setWindows(prev => ({ 
+      ...prev, 
+      [win]: { ...prev[win], open: false } 
+    }));
+  };
+
+  const minimizeWindow = (win) => {
+    setWindows(prev => ({ 
+      ...prev, 
+      [win]: { ...prev[win], minimized: true } 
+    }));
+  };
+
+  const toggleTaskbarWindow = (win) => {
+    if (windows[win].minimized) {
+      // restore
+      setWindows(prev => ({ ...prev, [win]: { ...prev[win], minimized: false } }));
+    } else {
+      // minimize
+      minimizeWindow(win);
+    }
   };
 
   const toggleResumeSection = (section) => {
@@ -93,23 +127,27 @@ function App() {
     );
   }
 
-  // Define fonts
-  const contentFont = lang === 'VI' ? { fontFamily: "'Be Vietnam Pro', sans-serif" } : {};
-
   return (
     <div className="w-screen h-screen crt bg-[#008080] overflow-hidden relative" style={{ backgroundImage: 'url("https://www.transparenttextures.com/patterns/cubes.png")' }}>
       {/* Desktop Icons */}
       <div className="p-4 flex flex-col gap-6 absolute top-0 left-0">
-        <DesktopIcon name="My Computer" icon="💻" onClick={() => toggleWindow('about')} />
-        <DesktopIcon name="Resume.exe" icon="📁" onClick={() => toggleWindow('resume')} />
-        <DesktopIcon name="Contact.exe" icon="💬" onClick={() => toggleWindow('contact')} />
+        <DesktopIcon name="My Computer" icon="💻" onClick={() => openWindow('about')} />
+        <DesktopIcon name="Resume.exe" icon="📁" onClick={() => openWindow('resume')} />
+        <DesktopIcon name="Contact.exe" icon="💬" onClick={() => openWindow('contact')} />
       </div>
 
       {/* Windows */}
-      {windows.about && (
-        <Window title="About_Me.txt - Notepad" defaultPosition={{ x: 100, y: 50 }} width="w-[450px]" onClose={() => toggleWindow('about')}>
-          <div className="p-2 text-black" style={contentFont}>
-            <h2 className="font-bold text-xl mb-2 text-y2k-pink font-pixel">Le Kim Ngan</h2>
+      {windows.about.open && (
+        <Window 
+          title="About_Me.txt - Notepad" 
+          defaultPosition={{ x: 100, y: 50 }} 
+          width="w-[450px]" 
+          onClose={() => closeWindow('about')}
+          onMinimize={() => minimizeWindow('about')}
+          isMinimized={windows.about.minimized}
+        >
+          <div className="p-2 text-black">
+            <h2 className="font-bold text-xl mb-2 text-y2k-pink">Le Kim Ngan</h2>
             <p className="italic font-bold mb-4">
               {lang === 'EN' 
                 ? `"Looks like the 'perfect student'. Plays like a menace on the Rift."`
@@ -129,13 +167,20 @@ function App() {
         </Window>
       )}
 
-      {windows.resume && (
-        <Window title="Resume.exe" defaultPosition={{ x: 200, y: 150 }} width="w-[500px]" onClose={() => toggleWindow('resume')}>
-          <div className="p-2 text-black" style={contentFont}>
+      {windows.resume.open && (
+        <Window 
+          title="Resume.exe" 
+          defaultPosition={{ x: 200, y: 150 }} 
+          width="w-[500px]" 
+          onClose={() => closeWindow('resume')}
+          onMinimize={() => minimizeWindow('resume')}
+          isMinimized={windows.resume.minimized}
+        >
+          <div className="p-2 text-black">
             {/* Education Section */}
             <div className="mb-2 border border-gray-400 p-1 bg-[#f0f0f0]">
               <div 
-                className="font-bold flex items-center cursor-pointer select-none font-pixel text-sm py-1"
+                className="font-bold flex items-center cursor-pointer select-none text-sm py-1"
                 onClick={() => toggleResumeSection('edu')}
               >
                 <span className="mr-2 w-4 inline-block text-center">{resumeExpanded.edu ? '-' : '+'}</span>
@@ -143,18 +188,24 @@ function App() {
               </div>
               {resumeExpanded.edu && (
                 <div className="pl-6 pr-2 py-2 bg-white border-t border-gray-400 text-sm mt-1">
-                  <ul className="list-disc pl-4 space-y-2">
-                    <li>
-                      <strong>{lang === 'EN' ? 'Foreign Trade University (FTU)' : 'Đại học Ngoại thương (FTU)'}</strong><br/>
-                      {lang === 'EN' 
-                        ? 'High-Quality Program, International Economics (K63), 2024-2027. Core coursework in economics and programming — algorithmic thinking and Python-based data processing.' 
-                        : 'Chương trình Chất lượng cao, Kinh tế Quốc tế (K63), 2024-2027. Các môn học cốt lõi về kinh tế và lập trình — tư duy thuật toán và xử lý dữ liệu với Python.'}
+                  <ul className="space-y-3">
+                    <li className="flex gap-2">
+                      <span>🏫</span>
+                      <div>
+                        <strong>{lang === 'EN' ? 'Foreign Trade University (FTU)' : 'Đại học Ngoại thương (FTU)'}</strong><br/>
+                        {lang === 'EN' 
+                          ? 'High-Quality Program, International Economics (K63), 2024-2027. Core coursework in economics and programming — algorithmic thinking and Python-based data processing.' 
+                          : 'Chương trình Chất lượng cao, Kinh tế Quốc tế (K63), 2024-2027. Các môn học cốt lõi về kinh tế và lập trình — tư duy thuật toán và xử lý dữ liệu với Python.'}
+                      </div>
                     </li>
-                    <li>
-                      <strong>{lang === 'EN' ? 'Ha Tinh High School for the Gifted' : 'Trường THPT Chuyên Hà Tĩnh'}</strong><br/>
-                      {lang === 'EN' 
-                        ? 'Specialized English Class 1 (K27), 2021-2024. 1st Prize Provincial English Olympiad (2022-23 & 2023-24), 2nd Prize (2021-22). IELTS 8.0 (Reading 8.5, Listening 9.0, Speaking 7.5, Writing 6.5).' 
-                        : 'Chuyên Anh 1 (K27), 2021-2024. Giải Nhất HSG Tỉnh môn Tiếng Anh (2022-23 & 2023-24), Giải Nhì (2021-22). IELTS 8.0 (Reading 8.5, Listening 9.0, Speaking 7.5, Writing 6.5).'}
+                    <li className="flex gap-2">
+                      <span>🎓</span>
+                      <div>
+                        <strong>{lang === 'EN' ? 'Ha Tinh High School for the Gifted' : 'Trường THPT Chuyên Hà Tĩnh'}</strong><br/>
+                        {lang === 'EN' 
+                          ? 'Specialized English Class 1 (K27), 2021-2024. 1st Prize Provincial English Olympiad (2022-23 & 2023-24), 2nd Prize (2021-22). IELTS 8.0 (Reading 8.5, Listening 9.0, Speaking 7.5, Writing 6.5).' 
+                          : 'Chuyên Anh 1 (K27), 2021-2024. Giải Nhất HSG Tỉnh môn Tiếng Anh (2022-23 & 2023-24), Giải Nhì (2021-22). IELTS 8.0 (Reading 8.5, Listening 9.0, Speaking 7.5, Writing 6.5).'}
+                      </div>
                     </li>
                   </ul>
                 </div>
@@ -164,7 +215,7 @@ function App() {
             {/* Experience Section */}
             <div className="mb-2 border border-gray-400 p-1 bg-[#f0f0f0]">
               <div 
-                className="font-bold flex items-center cursor-pointer select-none font-pixel text-sm py-1"
+                className="font-bold flex items-center cursor-pointer select-none text-sm py-1"
                 onClick={() => toggleResumeSection('exp')}
               >
                 <span className="mr-2 w-4 inline-block text-center">{resumeExpanded.exp ? '-' : '+'}</span>
@@ -172,18 +223,24 @@ function App() {
               </div>
               {resumeExpanded.exp && (
                 <div className="pl-6 pr-2 py-2 bg-white border-t border-gray-400 text-sm mt-1">
-                  <ul className="list-disc pl-4 space-y-2">
-                    <li>
-                      <strong>FBLC (FTU book-lovers club)</strong><br/>
-                      {lang === 'EN' 
-                        ? 'Head of Specialized Committee, Gen 4. Organized reading-culture events, built content, developed team operating procedures.' 
-                        : 'Trưởng ban Chuyên môn, Gen 4. Tổ chức các sự kiện văn hóa đọc, xây dựng nội dung, phát triển quy trình vận hành đội nhóm.'}
+                  <ul className="space-y-3">
+                    <li className="flex gap-2">
+                      <span>📚</span>
+                      <div>
+                        <strong>FBLC (FTU book-lovers club)</strong><br/>
+                        {lang === 'EN' 
+                          ? 'Head of Specialized Committee, Gen 4. Organized reading-culture events, built content, developed team operating procedures.' 
+                          : 'Trưởng ban Chuyên môn, Gen 4. Tổ chức các sự kiện văn hóa đọc, xây dựng nội dung, phát triển quy trình vận hành đội nhóm.'}
+                      </div>
                     </li>
-                    <li>
-                      <strong>CEPM (School of Economics & Public Management)</strong><br/>
-                      {lang === 'EN' 
-                        ? 'Training Dept. Collaborator. Data processing and academic document/records management.' 
-                        : 'Cộng tác viên Ban Đào tạo. Xử lý dữ liệu và quản lý hồ sơ/tài liệu học thuật.'}
+                    <li className="flex gap-2">
+                      <span>💼</span>
+                      <div>
+                        <strong>CEPM (School of Economics & Public Management)</strong><br/>
+                        {lang === 'EN' 
+                          ? 'Training Dept. Collaborator. Data processing and academic document/records management.' 
+                          : 'Cộng tác viên Ban Đào tạo. Xử lý dữ liệu và quản lý hồ sơ/tài liệu học thuật.'}
+                      </div>
                     </li>
                   </ul>
                 </div>
@@ -193,7 +250,7 @@ function App() {
             {/* Skills Section */}
             <div className="mb-2 border border-gray-400 p-1 bg-[#f0f0f0]">
               <div 
-                className="font-bold flex items-center cursor-pointer select-none font-pixel text-sm py-1"
+                className="font-bold flex items-center cursor-pointer select-none text-sm py-1"
                 onClick={() => toggleResumeSection('skills')}
               >
                 <span className="mr-2 w-4 inline-block text-center">{resumeExpanded.skills ? '-' : '+'}</span>
@@ -201,16 +258,12 @@ function App() {
               </div>
               {resumeExpanded.skills && (
                 <div className="pl-6 pr-2 py-2 bg-white border-t border-gray-400 text-sm mt-1">
-                  <ul className="list-disc pl-4 space-y-2">
-                    <li>
-                      <strong>{lang === 'EN' ? 'Technical:' : 'Kỹ thuật:'}</strong> {lang === 'EN' ? 'Python (basic data handling, logic problem-solving), AI tools (ChatGPT, Claude, Gemini, Gemini Notebook), Canva' : 'Python (xử lý dữ liệu cơ bản, giải quyết vấn đề logic), Công cụ AI (ChatGPT, Claude, Gemini, Gemini Notebook), Canva'}
-                    </li>
-                    <li>
-                      <strong>{lang === 'EN' ? 'Languages:' : 'Ngôn ngữ:'}</strong> {lang === 'EN' ? 'English (fluent, IELTS 8.0), Chinese (basic)' : 'Tiếng Anh (lưu loát, IELTS 8.0), Tiếng Trung (cơ bản)'}
-                    </li>
-                    <li>
-                      <strong>{lang === 'EN' ? 'Soft skills:' : 'Kỹ năng mềm:'}</strong> {lang === 'EN' ? 'problem-solving & critical thinking, organization & project management, teamwork, bilingual EN-VN translation/communication' : 'giải quyết vấn đề & tư duy phản biện, tổ chức & quản lý dự án, làm việc nhóm, biên phiên dịch/giao tiếp song ngữ Anh-Việt'}
-                    </li>
+                  <h3 className="font-bold border-b-2 border-black mb-2 pb-1 text-base">{lang === 'EN' ? 'Inventory' : 'Hành trang'}</h3>
+                  <ul className="space-y-2">
+                    <SkillItem name={lang === 'EN' ? 'Python / AI Tools' : 'Python / Công cụ AI'} level="Lv.40" icon="🐍" />
+                    <SkillItem name={lang === 'EN' ? 'English' : 'Tiếng Anh'} level="Lv.80" icon="🇬🇧" />
+                    <SkillItem name={lang === 'EN' ? 'Chinese' : 'Tiếng Trung'} level="Lv.20" icon="🇨🇳" />
+                    <SkillItem name={lang === 'EN' ? 'Soft Skills' : 'Kỹ năng mềm'} level="Lv.70" icon="🤝" />
                   </ul>
                 </div>
               )}
@@ -219,10 +272,17 @@ function App() {
         </Window>
       )}
 
-      {windows.contact && (
-        <Window title="Contact - Messenger" defaultPosition={{ x: 600, y: 100 }} width="w-[350px]" onClose={() => toggleWindow('contact')}>
+      {windows.contact.open && (
+        <Window 
+          title="Contact - Messenger" 
+          defaultPosition={{ x: 600, y: 100 }} 
+          width="w-[350px]" 
+          onClose={() => closeWindow('contact')}
+          onMinimize={() => minimizeWindow('contact')}
+          isMinimized={windows.contact.minimized}
+        >
           <div className="flex flex-col h-[400px] text-black">
-            <div className="bg-[#f0f0f0] p-2 border-b border-gray-400 flex flex-col gap-1 text-sm font-sans">
+            <div className="bg-[#f0f0f0] p-2 border-b border-gray-400 flex flex-col gap-1 text-sm">
               <div className="flex items-center gap-2 mb-1">
                 <div className="w-10 h-10 bg-yellow-300 rounded-full border border-black flex items-center justify-center text-xl">😎</div>
                 <div>
@@ -237,7 +297,7 @@ function App() {
               </div>
             </div>
             
-            <div className="flex-1 bg-white p-2 overflow-y-auto font-sans text-sm border-b border-gray-300" style={contentFont}>
+            <div className="flex-1 bg-white p-2 overflow-y-auto text-sm border-b border-gray-300">
               {contactChat.map((msg, i) => (
                 <div key={i} className="mb-2">
                   <span className={`font-bold ${msg.sender === 'You' ? 'text-blue-600' : msg.sender === 'Admin' ? 'text-red-600' : 'text-gray-500'}`}>
@@ -252,9 +312,9 @@ function App() {
                 <textarea 
                   value={contactMsg}
                   onChange={(e) => setContactMsg(e.target.value)}
-                  className="w-full h-full border border-gray-400 p-1 resize-none font-sans text-sm focus:outline-none focus:border-blue-500" 
+                  className="w-full h-full border border-gray-400 p-1 resize-none text-sm focus:outline-none focus:border-blue-500 font-inherit" 
                   placeholder={lang === 'EN' ? "Type a message..." : "Nhập tin nhắn..."}
-                  style={contentFont}
+                  style={{ fontFamily: 'inherit' }}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
                       e.preventDefault();
@@ -283,20 +343,38 @@ function App() {
           <span className="text-blue-800 text-xl font-serif italic">W</span> Start
         </button>
         <div className="flex-1 flex gap-1 h-full py-1 overflow-x-auto">
-          {windows.about && <TaskbarBtn title="About_Me.txt" />}
-          {windows.resume && <TaskbarBtn title="Resume.exe" />}
-          {windows.contact && <TaskbarBtn title="Contact.exe" />}
+          {windows.about.open && (
+            <TaskbarBtn 
+              title="About_Me.txt" 
+              active={!windows.about.minimized} 
+              onClick={() => toggleTaskbarWindow('about')} 
+            />
+          )}
+          {windows.resume.open && (
+            <TaskbarBtn 
+              title="Resume.exe" 
+              active={!windows.resume.minimized} 
+              onClick={() => toggleTaskbarWindow('resume')} 
+            />
+          )}
+          {windows.contact.open && (
+            <TaskbarBtn 
+              title="Contact.exe" 
+              active={!windows.contact.minimized} 
+              onClick={() => toggleTaskbarWindow('contact')} 
+            />
+          )}
         </div>
         <div className="flex items-center gap-2">
           {/* Language Toggle */}
           <button 
             onClick={toggleLang}
-            className="h-8 px-2 border-2 shadow-win-out active:shadow-win-in flex items-center text-sm font-sans font-bold text-black bg-win-gray"
+            className="h-8 px-2 border-2 shadow-win-out active:shadow-win-in flex items-center text-sm font-bold text-black bg-win-gray"
             title="Toggle Language"
           >
             {lang}
           </button>
-          <div className="h-8 px-2 border-2 shadow-win-in flex items-center text-sm font-sans text-black whitespace-nowrap">
+          <div className="h-8 px-2 border-2 shadow-win-in flex items-center text-sm text-black whitespace-nowrap">
             {time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </div>
         </div>
@@ -309,14 +387,27 @@ function DesktopIcon({ name, icon, onClick }) {
   return (
     <div className="flex flex-col items-center w-20 cursor-pointer group" onClick={onClick} onDoubleClick={onClick}>
       <div className="text-4xl mb-1 drop-shadow-md group-hover:scale-110 transition-transform">{icon}</div>
-      <div className="text-center text-sm bg-black/50 text-white px-1 leading-tight font-pixel">{name}</div>
+      <div className="text-center text-sm bg-black/50 text-white px-1 leading-tight">{name}</div>
     </div>
   );
 }
 
-function TaskbarBtn({ title }) {
+function SkillItem({ name, level, icon }) {
   return (
-    <button className="h-full px-2 min-w-[100px] text-left bg-win-gray border-2 shadow-win-out active:shadow-win-in flex items-center text-sm truncate font-sans font-bold text-gray-800">
+    <li className="flex items-center gap-2 text-sm text-black">
+      <span className="text-lg">{icon}</span>
+      <span className="flex-1 font-bold">{name}</span>
+      <span className="text-blue-700 font-bold">{level}</span>
+    </li>
+  );
+}
+
+function TaskbarBtn({ title, active, onClick }) {
+  return (
+    <button 
+      onClick={onClick}
+      className={`h-full px-2 min-w-[100px] text-left bg-win-gray border-2 ${active ? 'shadow-win-in bg-[#d0d0d0]' : 'shadow-win-out hover:bg-[#c8c8c8]'} flex items-center text-sm truncate font-bold text-gray-800 transition-colors`}
+    >
       {title}
     </button>
   );
