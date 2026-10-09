@@ -6,11 +6,32 @@ function App() {
   const [started, setStarted] = useState(false);
   const [time, setTime] = useState(new Date());
   const [lang, setLang] = useState('EN'); // 'EN' or 'VI'
+  
+  // Windows state
   const [windows, setWindows] = useState({
     about: { open: true, minimized: false },
     resume: { open: false, minimized: false },
     contact: { open: false, minimized: false },
   });
+
+  // Stacking z-index & active focused window
+  const [zIndices, setZIndices] = useState({
+    about: 10,
+    resume: 11,
+    contact: 12,
+  });
+  const [activeWindow, setActiveWindow] = useState('about');
+
+  // Dynamic window positions (cascaded when opened)
+  const [cascadeCount, setCascadeCount] = useState(0);
+  const [windowPositions, setWindowPositions] = useState({
+    about: { x: 60, y: 40 },
+    resume: { x: 110, y: 80 },
+    contact: { x: 160, y: 120 },
+  });
+
+  // Desktop icon selection state
+  const [selectedIcon, setSelectedIcon] = useState(null);
 
   // Resume Sections State - collapsed by default
   const [resumeExpanded, setResumeExpanded] = useState({
@@ -26,10 +47,10 @@ function App() {
   const [contactMsg, setContactMsg] = useState('');
   const [isSending, setIsSending] = useState(false);
 
-  // When language changes, update Admin's first message if they haven't sent anything else
+  // When language changes, update Admin's first message if no conversation yet
   useEffect(() => {
     if (contactChat.length === 1 && contactChat[0].sender === 'Admin') {
-       setContactChat([{ sender: 'Admin', text: lang === 'EN' ? 'Hello! How can I help you?' : 'Chào bạn! Mình có thể giúp gì cho bạn?' }]);
+      setContactChat([{ sender: 'Admin', text: lang === 'EN' ? 'Hello! How can I help you?' : 'Chào bạn! Mình có thể giúp gì cho bạn?' }]);
     }
   }, [lang]);
 
@@ -38,34 +59,79 @@ function App() {
     return () => clearInterval(timer);
   }, []);
 
+  const focusWindow = (winKey) => {
+    setActiveWindow(winKey);
+    setZIndices(prev => {
+      const maxZ = Math.max(...Object.values(prev));
+      if (prev[winKey] === maxZ) return prev;
+      return {
+        ...prev,
+        [winKey]: maxZ + 1,
+      };
+    });
+  };
+
+  const getNextActive = (currentWindows, currentZ, excludeWin) => {
+    const visible = Object.entries(currentWindows)
+      .filter(([k, v]) => k !== excludeWin && v.open && !v.minimized)
+      .sort((a, b) => currentZ[b[0]] - currentZ[a[0]]);
+    return visible.length > 0 ? visible[0][0] : null;
+  };
+
   const openWindow = (win) => {
+    // If opening fresh (was closed), cascade its initial position
+    if (!windows[win].open) {
+      const nextOffset = ((cascadeCount + 1) * 30) % 180;
+      setCascadeCount(c => c + 1);
+      setWindowPositions(prev => ({
+        ...prev,
+        [win]: {
+          x: 50 + nextOffset,
+          y: 40 + nextOffset,
+        }
+      }));
+    }
+
     setWindows(prev => ({ 
       ...prev, 
       [win]: { open: true, minimized: false } 
     }));
+    focusWindow(win);
   };
 
   const closeWindow = (win) => {
-    setWindows(prev => ({ 
-      ...prev, 
-      [win]: { ...prev[win], open: false } 
-    }));
+    setWindows(prev => {
+      const updated = { ...prev, [win]: { ...prev[win], open: false } };
+      if (activeWindow === win) {
+        const next = getNextActive(updated, zIndices, win);
+        setActiveWindow(next);
+      }
+      return updated;
+    });
   };
 
   const minimizeWindow = (win) => {
-    setWindows(prev => ({ 
-      ...prev, 
-      [win]: { ...prev[win], minimized: true } 
-    }));
+    setWindows(prev => {
+      const updated = { ...prev, [win]: { ...prev[win], minimized: true } };
+      if (activeWindow === win) {
+        const next = getNextActive(updated, zIndices, win);
+        setActiveWindow(next);
+      }
+      return updated;
+    });
   };
 
   const toggleTaskbarWindow = (win) => {
     if (windows[win].minimized) {
-      // restore
+      // Restore and bring to front
       setWindows(prev => ({ ...prev, [win]: { ...prev[win], minimized: false } }));
-    } else {
-      // minimize
+      focusWindow(win);
+    } else if (activeWindow === win) {
+      // Already focused -> minimize
       minimizeWindow(win);
+    } else {
+      // Open in background -> bring to front
+      focusWindow(win);
     }
   };
 
@@ -128,25 +194,59 @@ function App() {
   }
 
   return (
-    <div className="w-screen h-screen crt bg-[#008080] overflow-hidden relative" style={{ backgroundImage: 'url("https://www.transparenttextures.com/patterns/cubes.png")' }}>
+    <div 
+      className="w-screen h-screen crt bg-[#008080] overflow-hidden relative select-none" 
+      style={{ backgroundImage: 'url("https://www.transparenttextures.com/patterns/cubes.png")' }}
+      onClick={() => setSelectedIcon(null)}
+    >
       {/* Desktop Icons */}
-      <div className="p-4 flex flex-col gap-6 absolute top-0 left-0">
-        <DesktopIcon name="My Computer" icon="💻" onClick={() => openWindow('about')} />
-        <DesktopIcon name="Resume.exe" icon="📁" onClick={() => openWindow('resume')} />
-        <DesktopIcon name="Contact.exe" icon="💬" onClick={() => openWindow('contact')} />
+      <div className="p-4 flex flex-col gap-6 absolute top-0 left-0 z-0">
+        <DesktopIcon 
+          name="My Computer" 
+          icon="💻" 
+          isSelected={selectedIcon === 'about'}
+          onSelect={() => setSelectedIcon('about')}
+          onOpen={() => {
+            setSelectedIcon('about');
+            openWindow('about');
+          }} 
+        />
+        <DesktopIcon 
+          name="Resume.exe" 
+          icon="📁" 
+          isSelected={selectedIcon === 'resume'}
+          onSelect={() => setSelectedIcon('resume')}
+          onOpen={() => {
+            setSelectedIcon('resume');
+            openWindow('resume');
+          }} 
+        />
+        <DesktopIcon 
+          name="Contact.exe" 
+          icon="💬" 
+          isSelected={selectedIcon === 'contact'}
+          onSelect={() => setSelectedIcon('contact')}
+          onOpen={() => {
+            setSelectedIcon('contact');
+            openWindow('contact');
+          }} 
+        />
       </div>
 
       {/* Windows */}
       {windows.about.open && (
         <Window 
           title="About_Me.txt - Notepad" 
-          defaultPosition={{ x: 100, y: 50 }} 
+          defaultPosition={windowPositions.about} 
           width="w-[450px]" 
+          zIndex={zIndices.about}
+          isActive={activeWindow === 'about'}
+          onFocus={() => focusWindow('about')}
           onClose={() => closeWindow('about')}
           onMinimize={() => minimizeWindow('about')}
           isMinimized={windows.about.minimized}
         >
-          <div className="p-2 text-black">
+          <div className="p-2 text-black select-text">
             <h2 className="font-bold text-xl mb-2 text-y2k-pink">Le Kim Ngan</h2>
             <p className="italic font-bold mb-4">
               {lang === 'EN' 
@@ -170,15 +270,18 @@ function App() {
       {windows.resume.open && (
         <Window 
           title="Resume.exe" 
-          defaultPosition={{ x: 200, y: 150 }} 
+          defaultPosition={windowPositions.resume} 
           width="w-[500px]" 
+          zIndex={zIndices.resume}
+          isActive={activeWindow === 'resume'}
+          onFocus={() => focusWindow('resume')}
           onClose={() => closeWindow('resume')}
           onMinimize={() => minimizeWindow('resume')}
           isMinimized={windows.resume.minimized}
         >
-          <div className="p-2 text-black">
+          <div className="p-2 text-black space-y-2 select-text">
             {/* Education Section */}
-            <div className="mb-2 border border-gray-400 p-1 bg-[#f0f0f0]">
+            <div className="border border-gray-400 p-1 bg-[#f0f0f0]">
               <div 
                 className="font-bold flex items-center cursor-pointer select-none text-sm py-1"
                 onClick={() => toggleResumeSection('edu')}
@@ -213,7 +316,7 @@ function App() {
             </div>
 
             {/* Experience Section */}
-            <div className="mb-2 border border-gray-400 p-1 bg-[#f0f0f0]">
+            <div className="border border-gray-400 p-1 bg-[#f0f0f0]">
               <div 
                 className="font-bold flex items-center cursor-pointer select-none text-sm py-1"
                 onClick={() => toggleResumeSection('exp')}
@@ -248,7 +351,7 @@ function App() {
             </div>
 
             {/* Skills Section */}
-            <div className="mb-2 border border-gray-400 p-1 bg-[#f0f0f0]">
+            <div className="border border-gray-400 p-1 bg-[#f0f0f0]">
               <div 
                 className="font-bold flex items-center cursor-pointer select-none text-sm py-1"
                 onClick={() => toggleResumeSection('skills')}
@@ -275,29 +378,34 @@ function App() {
       {windows.contact.open && (
         <Window 
           title="Contact - Messenger" 
-          defaultPosition={{ x: 600, y: 100 }} 
-          width="w-[350px]" 
+          defaultPosition={windowPositions.contact} 
+          width="w-[360px]" 
+          zIndex={zIndices.contact}
+          isActive={activeWindow === 'contact'}
+          onFocus={() => focusWindow('contact')}
           onClose={() => closeWindow('contact')}
           onMinimize={() => minimizeWindow('contact')}
           isMinimized={windows.contact.minimized}
         >
-          <div className="flex flex-col h-[400px] text-black">
-            <div className="bg-[#f0f0f0] p-2 border-b border-gray-400 flex flex-col gap-1 text-sm">
+          <div className="flex flex-col h-full min-h-0 text-black select-text">
+            {/* Contact header profile */}
+            <div className="bg-[#f0f0f0] p-2 border-b border-gray-400 flex flex-col gap-1 text-sm shrink-0">
               <div className="flex items-center gap-2 mb-1">
-                <div className="w-10 h-10 bg-yellow-300 rounded-full border border-black flex items-center justify-center text-xl">😎</div>
-                <div>
-                  <div className="font-bold text-sm">Le Kim Ngan</div>
+                <div className="w-10 h-10 bg-yellow-300 rounded-full border border-black flex items-center justify-center text-xl shrink-0">😎</div>
+                <div className="min-w-0">
+                  <div className="font-bold text-sm truncate">Le Kim Ngan</div>
                   <div className="text-xs text-gray-600">Online</div>
                 </div>
               </div>
-              <div className="text-xs border-t border-gray-300 pt-1 mt-1">
-                <div>📧 ngan.lekim726@gmail.com</div>
+              <div className="text-xs border-t border-gray-300 pt-1 mt-1 space-y-0.5">
+                <div className="truncate">📧 ngan.lekim726@gmail.com</div>
                 <div>📱 0911579388</div>
-                <div>🌐 <a href="https://github.com/nganlk72" target="_blank" rel="noreferrer" className="text-blue-600 underline hover:text-blue-800">github.com/nganlk72</a></div>
+                <div className="truncate">🌐 <a href="https://github.com/nganlk72" target="_blank" rel="noreferrer" className="text-blue-600 underline hover:text-blue-800">github.com/nganlk72</a></div>
               </div>
             </div>
             
-            <div className="flex-1 bg-white p-2 overflow-y-auto text-sm border-b border-gray-300">
+            {/* Chat conversation area - shrinks and scrolls inside window */}
+            <div className="flex-1 min-h-[60px] bg-white p-2 overflow-y-auto text-sm border-b border-gray-300">
               {contactChat.map((msg, i) => (
                 <div key={i} className="mb-2">
                   <span className={`font-bold ${msg.sender === 'You' ? 'text-blue-600' : msg.sender === 'Admin' ? 'text-red-600' : 'text-gray-500'}`}>
@@ -307,12 +415,13 @@ function App() {
               ))}
             </div>
 
-            <form onSubmit={handleSendContact} className="flex flex-col">
-              <div className="p-2 bg-[#f0f0f0] h-20">
+            {/* Message input form */}
+            <form onSubmit={handleSendContact} className="flex flex-col shrink-0 bg-[#f0f0f0]">
+              <div className="p-2 h-20">
                 <textarea 
                   value={contactMsg}
                   onChange={(e) => setContactMsg(e.target.value)}
-                  className="w-full h-full border border-gray-400 p-1 resize-none text-sm focus:outline-none focus:border-blue-500 font-inherit" 
+                  className="w-full h-full border border-gray-400 p-1 resize-none text-sm focus:outline-none focus:border-blue-500 font-inherit bg-white" 
                   placeholder={lang === 'EN' ? "Type a message..." : "Nhập tin nhắn..."}
                   style={{ fontFamily: 'inherit' }}
                   onKeyDown={(e) => {
@@ -323,11 +432,11 @@ function App() {
                   }}
                 />
               </div>
-              <div className="bg-[#f0f0f0] p-1 flex justify-end">
+              <div className="p-1 flex justify-end">
                 <button 
                   type="submit"
                   disabled={isSending}
-                  className="px-4 py-1 bg-win-gray border-2 shadow-win-out active:shadow-win-in text-sm font-bold disabled:opacity-50"
+                  className="px-4 py-1 bg-win-gray border-2 shadow-win-out active:shadow-win-in text-sm font-bold disabled:opacity-50 cursor-pointer"
                 >
                   {isSending ? (lang === 'EN' ? 'Sending...' : 'Đang gửi...') : (lang === 'EN' ? 'Send' : 'Gửi')}
                 </button>
@@ -339,28 +448,28 @@ function App() {
 
       {/* Taskbar */}
       <div className="absolute bottom-0 left-0 right-0 h-10 bg-win-gray border-t-2 border-white shadow-win-out flex items-center px-1 z-50">
-        <button className="h-8 px-2 flex items-center gap-2 bg-win-gray border-2 shadow-win-out active:shadow-win-in font-bold mr-2 text-black">
+        <button className="h-8 px-2 flex items-center gap-2 bg-win-gray border-2 shadow-win-out active:shadow-win-in font-bold mr-2 text-black cursor-pointer">
           <span className="text-blue-800 text-xl font-serif italic">W</span> Start
         </button>
         <div className="flex-1 flex gap-1 h-full py-1 overflow-x-auto">
           {windows.about.open && (
             <TaskbarBtn 
               title="About_Me.txt" 
-              active={!windows.about.minimized} 
+              active={activeWindow === 'about' && !windows.about.minimized} 
               onClick={() => toggleTaskbarWindow('about')} 
             />
           )}
           {windows.resume.open && (
             <TaskbarBtn 
               title="Resume.exe" 
-              active={!windows.resume.minimized} 
+              active={activeWindow === 'resume' && !windows.resume.minimized} 
               onClick={() => toggleTaskbarWindow('resume')} 
             />
           )}
           {windows.contact.open && (
             <TaskbarBtn 
               title="Contact.exe" 
-              active={!windows.contact.minimized} 
+              active={activeWindow === 'contact' && !windows.contact.minimized} 
               onClick={() => toggleTaskbarWindow('contact')} 
             />
           )}
@@ -369,7 +478,7 @@ function App() {
           {/* Language Toggle */}
           <button 
             onClick={toggleLang}
-            className="h-8 px-2 border-2 shadow-win-out active:shadow-win-in flex items-center text-sm font-bold text-black bg-win-gray"
+            className="h-8 px-2 border-2 shadow-win-out active:shadow-win-in flex items-center text-sm font-bold text-black bg-win-gray cursor-pointer"
             title="Toggle Language"
           >
             {lang}
@@ -383,11 +492,37 @@ function App() {
   );
 }
 
-function DesktopIcon({ name, icon, onClick }) {
+function DesktopIcon({ name, icon, isSelected, onSelect, onOpen }) {
+  const handleClick = (e) => {
+    e.stopPropagation();
+    if (isSelected) {
+      onOpen();
+    } else {
+      onSelect();
+    }
+  };
+
+  const handleDoubleClick = (e) => {
+    e.stopPropagation();
+    onOpen();
+  };
+
   return (
-    <div className="flex flex-col items-center w-20 cursor-pointer group" onClick={onClick} onDoubleClick={onClick}>
-      <div className="text-4xl mb-1 drop-shadow-md group-hover:scale-110 transition-transform">{icon}</div>
-      <div className="text-center text-sm bg-black/50 text-white px-1 leading-tight">{name}</div>
+    <div 
+      className="flex flex-col items-center w-20 cursor-pointer select-none group" 
+      onClick={handleClick} 
+      onDoubleClick={handleDoubleClick}
+    >
+      <div className={`text-4xl mb-1 drop-shadow-md transition-transform ${isSelected ? 'scale-105' : 'group-hover:scale-105'}`}>
+        {icon}
+      </div>
+      <div className={`text-center text-sm px-1 leading-tight ${
+        isSelected 
+          ? 'bg-[#000080] text-white outline-1 outline-dotted outline-yellow-300' 
+          : 'bg-black/50 text-white'
+      }`}>
+        {name}
+      </div>
     </div>
   );
 }
@@ -406,7 +541,11 @@ function TaskbarBtn({ title, active, onClick }) {
   return (
     <button 
       onClick={onClick}
-      className={`h-full px-2 min-w-[100px] text-left bg-win-gray border-2 ${active ? 'shadow-win-in bg-[#d0d0d0]' : 'shadow-win-out hover:bg-[#c8c8c8]'} flex items-center text-sm truncate font-bold text-gray-800 transition-colors`}
+      className={`h-full px-2 min-w-[100px] text-left bg-win-gray border-2 ${
+        active 
+          ? 'shadow-win-in bg-[#d0d0d0] font-black' 
+          : 'shadow-win-out hover:bg-[#c8c8c8] font-bold'
+      } flex items-center text-sm truncate text-gray-800 transition-colors cursor-pointer`}
     >
       {title}
     </button>
