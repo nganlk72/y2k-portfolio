@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import StartScreen from './components/StartScreen';
+import StartMenu from './components/StartMenu';
+import ShutDownModal from './components/ShutDownModal';
+import SafeToTurnOffScreen from './components/SafeToTurnOffScreen';
 import Window from './components/Window';
 import MinesweeperApp from './components/MinesweeperApp';
 import PacmanApp from './components/PacmanApp';
@@ -7,6 +10,13 @@ import RecycleBinApp from './components/RecycleBinApp';
 import WinampPlayerApp from './components/WinampPlayerApp';
 import ChatbotApp from './components/ChatbotApp';
 import DesktopPet from './components/DesktopPet';
+import { 
+  playClickSound, 
+  playWindowOpenSound, 
+  playWindowCloseSound, 
+  playShutdownChime, 
+  setSoundMuted 
+} from './utils/soundEffects';
 
 function App() {
   const [started, setStarted] = useState(false);
@@ -39,6 +49,12 @@ function App() {
   const [activeWindow, setActiveWindow] = useState('about');
   const [lastOpenedWindow, setLastOpenedWindow] = useState(null);
   const [isMusicPlaying, setIsMusicPlaying] = useState(false);
+
+  // Retro OS Start Menu & Sound & Shut Down state
+  const [isStartMenuOpen, setIsStartMenuOpen] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
+  const [showShutdownModal, setShowShutdownModal] = useState(false);
+  const [isShutDown, setIsShutDown] = useState(false);
 
   // Dynamic window positions (cascaded when opened)
   const [cascadeCount, setCascadeCount] = useState(0);
@@ -102,6 +118,8 @@ function App() {
   };
 
   const openWindow = (win) => {
+    playWindowOpenSound();
+    setIsStartMenuOpen(false);
     // Notify desktop pet
     setLastOpenedWindow(win);
 
@@ -126,6 +144,7 @@ function App() {
   };
 
   const closeWindow = (win) => {
+    playWindowCloseSound();
     if (win === 'winamp') {
       setIsMusicPlaying(false);
     }
@@ -140,6 +159,7 @@ function App() {
   };
 
   const minimizeWindow = (win) => {
+    playWindowCloseSound();
     setWindows(prev => {
       const updated = { ...prev, [win]: { ...prev[win], minimized: true } };
       if (activeWindow === win) {
@@ -152,6 +172,7 @@ function App() {
 
   const toggleTaskbarWindow = (win) => {
     if (windows[win].minimized) {
+      playClickSound();
       // Restore and bring to front
       setWindows(prev => ({ ...prev, [win]: { ...prev[win], minimized: false } }));
       focusWindow(win);
@@ -159,16 +180,19 @@ function App() {
       // Already focused -> minimize
       minimizeWindow(win);
     } else {
+      playClickSound();
       // Open in background -> bring to front
       focusWindow(win);
     }
   };
 
   const toggleResumeSection = (section) => {
+    playClickSound();
     setResumeExpanded(prev => ({ ...prev, [section]: !prev[section] }));
   };
 
   const toggleLang = () => {
+    playClickSound();
     setLang(prev => prev === 'EN' ? 'VI' : 'EN');
   };
 
@@ -214,6 +238,19 @@ function App() {
     }
   };
 
+  if (isShutDown) {
+    return (
+      <div className="w-screen h-screen crt bg-black text-white">
+        <SafeToTurnOffScreen 
+          onRestart={() => {
+            setIsShutDown(false);
+            setStarted(true);
+          }} 
+        />
+      </div>
+    );
+  }
+
   if (!started) {
     return (
       <div className="w-screen h-screen crt bg-black text-white">
@@ -226,7 +263,10 @@ function App() {
     <div 
       className="w-screen h-screen crt bg-[#008080] overflow-hidden relative select-none" 
       style={{ backgroundImage: 'url("https://www.transparenttextures.com/patterns/cubes.png")' }}
-      onClick={() => setSelectedIcon(null)}
+      onClick={() => {
+        setSelectedIcon(null);
+        setIsStartMenuOpen(false);
+      }}
     >
       {/* Desktop Pet Mascot — interactive pixel-art cat */}
       <DesktopPet 
@@ -634,9 +674,46 @@ function App() {
         </Window>
       )}
 
+      {/* Windows 98 Start Menu */}
+      {isStartMenuOpen && (
+        <StartMenu
+          lang={lang}
+          onOpenWindow={(win) => openWindow(win)}
+          onToggleLang={toggleLang}
+          onShutDown={() => setShowShutdownModal(true)}
+          onClose={() => setIsStartMenuOpen(false)}
+        />
+      )}
+
+      {/* Windows 98 Shut Down Dialog */}
+      {showShutdownModal && (
+        <ShutDownModal
+          lang={lang}
+          onConfirmShutDown={() => {
+            setShowShutdownModal(false);
+            setIsShutDown(true);
+            playShutdownChime();
+          }}
+          onRestart={() => {
+            setShowShutdownModal(false);
+            setStarted(false);
+          }}
+          onCancel={() => setShowShutdownModal(false)}
+        />
+      )}
+
       {/* Taskbar */}
       <div className="absolute bottom-0 left-0 right-0 h-10 bg-win-gray border-t-2 border-white shadow-win-out flex items-center px-1 z-50">
-        <button className="h-8 px-2 flex items-center gap-2 bg-win-gray border-2 shadow-win-out active:shadow-win-in font-bold mr-2 text-black cursor-pointer">
+        <button 
+          onClick={(e) => {
+            e.stopPropagation();
+            playClickSound();
+            setIsStartMenuOpen(prev => !prev);
+          }}
+          className={`h-8 px-2 flex items-center gap-2 bg-win-gray border-2 ${
+            isStartMenuOpen ? 'shadow-win-in bg-[#d0d0d0]' : 'shadow-win-out'
+          } font-bold mr-2 text-black cursor-pointer active:shadow-win-in`}
+        >
           <span className="text-blue-800 text-xl font-serif italic">W</span> Start
         </button>
         <div className="flex-1 flex gap-1 h-full py-1 overflow-x-auto">
@@ -697,7 +774,22 @@ function App() {
             />
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
+          {/* Mute / Unmute Sound Toggle */}
+          <button 
+            onClick={(e) => {
+              e.stopPropagation();
+              const next = !isMuted;
+              setIsMuted(next);
+              setSoundMuted(next);
+              if (!next) playClickSound();
+            }}
+            className="h-8 px-1.5 border-2 shadow-win-out active:shadow-win-in flex items-center text-xs font-bold text-black bg-win-gray cursor-pointer"
+            title={isMuted ? "Sound: Muted (Click to Unmute)" : "Sound: On (Click to Mute)"}
+          >
+            {isMuted ? '🔇' : '🔊'}
+          </button>
+
           {/* Language Toggle */}
           <button 
             onClick={toggleLang}
@@ -718,6 +810,7 @@ function App() {
 function DesktopIcon({ name, icon, tag, isSelected, onSelect, onOpen }) {
   const handleClick = (e) => {
     e.stopPropagation();
+    playClickSound();
     if (isSelected) {
       onOpen();
     } else {
@@ -727,6 +820,7 @@ function DesktopIcon({ name, icon, tag, isSelected, onSelect, onOpen }) {
 
   const handleDoubleClick = (e) => {
     e.stopPropagation();
+    playClickSound();
     onOpen();
   };
 
