@@ -38,6 +38,7 @@ function App() {
   });
   const [activeWindow, setActiveWindow] = useState('about');
   const [lastOpenedWindow, setLastOpenedWindow] = useState(null);
+  const [isMusicPlaying, setIsMusicPlaying] = useState(false);
 
   // Dynamic window positions (cascaded when opened)
   const [cascadeCount, setCascadeCount] = useState(0);
@@ -125,6 +126,9 @@ function App() {
   };
 
   const closeWindow = (win) => {
+    if (win === 'winamp') {
+      setIsMusicPlaying(false);
+    }
     setWindows(prev => {
       const updated = { ...prev, [win]: { ...prev[win], open: false } };
       if (activeWindow === win) {
@@ -224,8 +228,12 @@ function App() {
       style={{ backgroundImage: 'url("https://www.transparenttextures.com/patterns/cubes.png")' }}
       onClick={() => setSelectedIcon(null)}
     >
-      {/* Desktop Pet Mascot — pixel-art sleepy cat */}
-      <DesktopPet lastOpenedWindow={lastOpenedWindow} />
+      {/* Desktop Pet Mascot — interactive pixel-art cat */}
+      <DesktopPet 
+        lastOpenedWindow={lastOpenedWindow} 
+        isMusicPlaying={isMusicPlaying}
+        isGameActive={windows.minesweeper.open || windows.pacman.open}
+      />
 
       {/* Desktop Icons - 2 columns or vertical list */}
       <div className="p-3 flex flex-col gap-3.5 absolute top-0 left-0 z-0">
@@ -570,7 +578,7 @@ function App() {
           onMinimize={() => minimizeWindow('winamp')}
           isMinimized={windows.winamp.minimized}
         >
-          <WinampPlayerApp lang={lang} />
+          <WinampPlayerApp lang={lang} onPlayChange={setIsMusicPlaying} />
         </Window>
       )}
 

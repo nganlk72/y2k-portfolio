@@ -13,11 +13,16 @@ const TRACK_INFO = {
   audioSrc: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_c8c8a73467.mp3?filename=retro-game-arcade-236130.mp3',
 };
 
-export default function WinampPlayerApp({ lang = 'EN' }) {
+export default function WinampPlayerApp({ lang = 'EN', onPlayChange }) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [volume, setVolume] = useState(70);
   const audioRef = useRef(null);
+
+  // Notify parent component about playback state
+  useEffect(() => {
+    onPlayChange?.(isPlaying);
+  }, [isPlaying, onPlayChange]);
 
   // Synthesized fallback oscillator when native audio element can't load or is blocked
   const synthIntervalRef = useRef(null);
