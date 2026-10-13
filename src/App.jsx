@@ -473,6 +473,7 @@ function App() {
           title="Contact - Messenger" 
           defaultPosition={windowPositions.contact} 
           width="w-[360px]" 
+          height="440px"
           zIndex={zIndices.contact}
           isActive={activeWindow === 'contact'}
           onFocus={() => focusWindow('contact')}
@@ -579,6 +580,7 @@ function App() {
           title="Bot.exe - Interactive Assistant" 
           defaultPosition={windowPositions.bot} 
           width="w-[370px]" 
+          height="460px"
           zIndex={zIndices.bot}
           isActive={activeWindow === 'bot'}
           onFocus={() => focusWindow('bot')}

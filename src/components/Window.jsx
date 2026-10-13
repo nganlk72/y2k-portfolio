@@ -10,6 +10,7 @@ export default function Window({
   isMinimized, 
   defaultPosition = { x: 0, y: 0 }, 
   width = "w-[400px]",
+  height,
   zIndex = 10,
   isActive = true,
   onFocus
@@ -70,6 +71,7 @@ export default function Window({
           overflow: 'hidden', 
           minWidth: '280px', 
           minHeight: '180px', 
+          ...(height ? { height } : {}),
           zIndex 
         }}
       >

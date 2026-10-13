@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 
 // Scripted keyword response table directly from prompt
 const SCRIPTED_RESPONSES = [
@@ -89,6 +89,12 @@ export default function ChatbotApp({ lang = 'EN', onOpenContact }) {
     },
   ]);
   const [input, setInput] = useState('');
+  const messagesEndRef = useRef(null);
+
+  // Auto-scroll to latest message whenever conversation updates
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
 
   const handleSend = (e) => {
     e.preventDefault();
@@ -151,8 +157,8 @@ export default function ChatbotApp({ lang = 'EN', onOpenContact }) {
         ))}
       </div>
 
-      {/* Conversation Thread */}
-      <div className="flex-1 min-h-[80px] p-2 bg-white overflow-y-auto space-y-2 border-b border-gray-300 text-xs select-text">
+      {/* Conversation Thread - Scrollable with auto-scroll */}
+      <div className="flex-1 min-h-0 p-2 bg-white overflow-y-auto space-y-2 border-b border-gray-300 text-xs select-text">
         {messages.map((m, i) => (
           <div
             key={i}
@@ -172,6 +178,7 @@ export default function ChatbotApp({ lang = 'EN', onOpenContact }) {
             </div>
           </div>
         ))}
+        <div ref={messagesEndRef} />
       </div>
 
       {/* Message Input Box */}

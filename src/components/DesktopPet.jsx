@@ -128,6 +128,7 @@ export default function DesktopPet({ lastOpenedWindow }) {
   const [clickCount, setClickCount] = useState(0);
 
   const unhingedCooldownRef = useRef(false);
+  const hoverTimerRef = useRef(null);
   const timersRef = useRef([]);
 
   const addTimer = (fn, ms) => {
@@ -201,6 +202,21 @@ export default function DesktopPet({ lastOpenedWindow }) {
     }
   }, [clickCount]);
 
+  // ── Hover petting (gentle purring) ──────────────────────────────────────
+  const handleMouseEnter = () => {
+    if (phase !== 'sleep') return;
+    hoverTimerRef.current = setTimeout(() => {
+      setSpeechBubble('*purrrrr* ❤️');
+    }, 700);
+  };
+
+  const handleMouseLeave = () => {
+    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+    if (speechBubble === '*purrrrr* ❤️') {
+      setSpeechBubble(null);
+    }
+  };
+
   // ── Derived visuals ──────────────────────────────────────────────────────
   const isAsleep = phase === 'sleep';
   const isUnhinged = phase === 'unhinged';
@@ -261,7 +277,9 @@ export default function DesktopPet({ lastOpenedWindow }) {
       {/* Pixel-art cat sprite via box-shadow mosaic */}
       <div
         onClick={handleClick}
-        title={`Click me! (${CLICK_THRESHOLD - clickCount} more to trigger...)`}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+        title={`Sleepy Cat: Hover to pet, click to poke! (${CLICK_THRESHOLD - clickCount} clicks to anger)`}
         className="cursor-pointer"
         style={{
           position: 'relative',
