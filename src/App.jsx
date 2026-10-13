@@ -1,6 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import StartScreen from './components/StartScreen';
 import Window from './components/Window';
+import MinesweeperApp from './components/MinesweeperApp';
+import PacmanApp from './components/PacmanApp';
+import RecycleBinApp from './components/RecycleBinApp';
+import WinampPlayerApp from './components/WinampPlayerApp';
+import ChatbotApp from './components/ChatbotApp';
+import DesktopPet from './components/DesktopPet';
 
 function App() {
   const [started, setStarted] = useState(false);
@@ -12,6 +18,11 @@ function App() {
     about: { open: true, minimized: false },
     resume: { open: false, minimized: false },
     contact: { open: false, minimized: false },
+    minesweeper: { open: false, minimized: false },
+    pacman: { open: false, minimized: false },
+    recycleBin: { open: false, minimized: false },
+    winamp: { open: false, minimized: false },
+    bot: { open: false, minimized: false },
   });
 
   // Stacking z-index & active focused window
@@ -19,15 +30,26 @@ function App() {
     about: 10,
     resume: 11,
     contact: 12,
+    minesweeper: 13,
+    pacman: 14,
+    recycleBin: 15,
+    winamp: 16,
+    bot: 17,
   });
   const [activeWindow, setActiveWindow] = useState('about');
+  const [lastOpenedWindow, setLastOpenedWindow] = useState(null);
 
   // Dynamic window positions (cascaded when opened)
   const [cascadeCount, setCascadeCount] = useState(0);
   const [windowPositions, setWindowPositions] = useState({
-    about: { x: 60, y: 40 },
-    resume: { x: 110, y: 80 },
-    contact: { x: 160, y: 120 },
+    about: { x: 50, y: 30 },
+    resume: { x: 90, y: 60 },
+    contact: { x: 130, y: 90 },
+    minesweeper: { x: 170, y: 80 },
+    pacman: { x: 210, y: 110 },
+    recycleBin: { x: 120, y: 70 },
+    winamp: { x: 260, y: 60 },
+    bot: { x: 180, y: 100 },
   });
 
   // Desktop icon selection state
@@ -79,6 +101,9 @@ function App() {
   };
 
   const openWindow = (win) => {
+    // Notify desktop pet
+    setLastOpenedWindow(win);
+
     // If opening fresh (was closed), cascade its initial position
     if (!windows[win].open) {
       const nextOffset = ((cascadeCount + 1) * 30) % 180;
@@ -86,8 +111,8 @@ function App() {
       setWindowPositions(prev => ({
         ...prev,
         [win]: {
-          x: 50 + nextOffset,
-          y: 40 + nextOffset,
+          x: 40 + nextOffset,
+          y: 35 + nextOffset,
         }
       }));
     }
@@ -199,8 +224,11 @@ function App() {
       style={{ backgroundImage: 'url("https://www.transparenttextures.com/patterns/cubes.png")' }}
       onClick={() => setSelectedIcon(null)}
     >
-      {/* Desktop Icons */}
-      <div className="p-4 flex flex-col gap-6 absolute top-0 left-0 z-0">
+      {/* Desktop Pet Mascot — pixel-art sleepy cat */}
+      <DesktopPet lastOpenedWindow={lastOpenedWindow} />
+
+      {/* Desktop Icons - 2 columns or vertical list */}
+      <div className="p-3 flex flex-col gap-3.5 absolute top-0 left-0 z-0">
         <DesktopIcon 
           name="My Computer" 
           icon="💻" 
@@ -231,6 +259,59 @@ function App() {
             openWindow('contact');
           }} 
         />
+        <DesktopIcon 
+          name="Recycle Bin" 
+          icon="🗑️" 
+          isSelected={selectedIcon === 'recycleBin'}
+          onSelect={() => setSelectedIcon('recycleBin')}
+          onOpen={() => {
+            setSelectedIcon('recycleBin');
+            openWindow('recycleBin');
+          }} 
+        />
+        <DesktopIcon 
+          name="WinAmp.exe" 
+          icon="⚡" 
+          isSelected={selectedIcon === 'winamp'}
+          onSelect={() => setSelectedIcon('winamp')}
+          onOpen={() => {
+            setSelectedIcon('winamp');
+            openWindow('winamp');
+          }} 
+        />
+        <DesktopIcon 
+          name="Bot.exe" 
+          icon="🤖" 
+          tag="[Chat]"
+          isSelected={selectedIcon === 'bot'}
+          onSelect={() => setSelectedIcon('bot')}
+          onOpen={() => {
+            setSelectedIcon('bot');
+            openWindow('bot');
+          }} 
+        />
+        <DesktopIcon 
+          name="Minesweeper.exe" 
+          icon="💣" 
+          tag="[Project]"
+          isSelected={selectedIcon === 'minesweeper'}
+          onSelect={() => setSelectedIcon('minesweeper')}
+          onOpen={() => {
+            setSelectedIcon('minesweeper');
+            openWindow('minesweeper');
+          }} 
+        />
+        <DesktopIcon 
+          name="PacMan.exe" 
+          icon="🍒" 
+          tag="[Project]"
+          isSelected={selectedIcon === 'pacman'}
+          onSelect={() => setSelectedIcon('pacman')}
+          onOpen={() => {
+            setSelectedIcon('pacman');
+            openWindow('pacman');
+          }} 
+        />
       </div>
 
       {/* Windows */}
@@ -238,7 +319,7 @@ function App() {
         <Window 
           title="About_Me.txt - Notepad" 
           defaultPosition={windowPositions.about} 
-          width="w-[450px]" 
+          width="w-[470px]" 
           zIndex={zIndices.about}
           isActive={activeWindow === 'about'}
           onFocus={() => focusWindow('about')}
@@ -258,11 +339,23 @@ function App() {
                 ? `Officially an International Economics major, mostly because 'prosperous career' sounded convincing at 18. Unofficially: the person who keeps every file on their computer meticulously in place, still rewatches childhood HBO marathons, and has been a T1 die-hard since middle school.`
                 : `Chính thức là sinh viên chuyên ngành Kinh tế Quốc tế, phần lớn vì cụm từ 'sự nghiệp xán lạn' nghe khá thuyết phục ở tuổi 18. Không chính thức: là người giữ mọi tệp trên máy tính ngăn nắp tỉ mỉ, vẫn xem lại các phim dài tập thời thơ ấu trên HBO và là fan cứng của T1 từ hồi cấp 2.`}
             </p>
-            <p>
+            <p className="mb-4">
               {lang === 'EN'
                 ? `I bring a clean, structured approach to chaotic ideas because someone has to make sure the math and the mood both check out.`
                 : `Mình mang đến cách tiếp cận gọn gàng, có cấu trúc cho những ý tưởng hỗn loạn vì phải có ai đó đảm bảo cả tính toán và cảm xúc đều hợp lý.`}
             </p>
+
+            {/* Portfolio Projects Note */}
+            <div className="border border-dashed border-gray-500 bg-yellow-50 p-2 text-xs text-gray-800">
+              <span className="font-bold text-blue-800">
+                {lang === 'EN' ? '📂 Portfolio Projects Note:' : '📂 Ghi chú Dự án Portfolio:'}
+              </span>
+              <p className="mt-1">
+                {lang === 'EN'
+                  ? 'Check out Minesweeper.exe and PacMan.exe on the desktop! These interactive games are featured as my portfolio projects, built using AI-assisted pair programming to explore rapid retro web development and game logic.'
+                  : 'Hãy trải nghiệm Minesweeper.exe và PacMan.exe trên màn hình desktop! Đây là các dự án portfolio của mình, được xây dựng bằng quy trình lập trình kết hợp AI để khám phá phát triển web retro và tư duy logic game.'}
+              </p>
+            </div>
           </div>
         </Window>
       )}
@@ -446,6 +539,91 @@ function App() {
         </Window>
       )}
 
+      {/* NEW FEATURE 1: Recycle Bin Window */}
+      {windows.recycleBin.open && (
+        <Window 
+          title="Recycle Bin" 
+          defaultPosition={windowPositions.recycleBin} 
+          width="w-[520px]" 
+          zIndex={zIndices.recycleBin}
+          isActive={activeWindow === 'recycleBin'}
+          onFocus={() => focusWindow('recycleBin')}
+          onClose={() => closeWindow('recycleBin')}
+          onMinimize={() => minimizeWindow('recycleBin')}
+          isMinimized={windows.recycleBin.minimized}
+        >
+          <RecycleBinApp lang={lang} />
+        </Window>
+      )}
+
+      {/* NEW FEATURE 2: Winamp Music Player Window */}
+      {windows.winamp.open && (
+        <Window 
+          title="WinAmp.exe - [T1 Lo-Fi Anthem]" 
+          defaultPosition={windowPositions.winamp} 
+          width="w-[330px]" 
+          zIndex={zIndices.winamp}
+          isActive={activeWindow === 'winamp'}
+          onFocus={() => focusWindow('winamp')}
+          onClose={() => closeWindow('winamp')}
+          onMinimize={() => minimizeWindow('winamp')}
+          isMinimized={windows.winamp.minimized}
+        >
+          <WinampPlayerApp lang={lang} />
+        </Window>
+      )}
+
+      {/* NEW FEATURE 3: Scripted Chatbot Window */}
+      {windows.bot.open && (
+        <Window 
+          title="Bot.exe - Interactive Assistant" 
+          defaultPosition={windowPositions.bot} 
+          width="w-[370px]" 
+          zIndex={zIndices.bot}
+          isActive={activeWindow === 'bot'}
+          onFocus={() => focusWindow('bot')}
+          onClose={() => closeWindow('bot')}
+          onMinimize={() => minimizeWindow('bot')}
+          isMinimized={windows.bot.minimized}
+        >
+          <ChatbotApp lang={lang} onOpenContact={() => openWindow('contact')} />
+        </Window>
+      )}
+
+      {/* Minesweeper Project Window */}
+      {windows.minesweeper.open && (
+        <Window 
+          title="Minesweeper.exe" 
+          defaultPosition={windowPositions.minesweeper} 
+          width="w-[340px]" 
+          zIndex={zIndices.minesweeper}
+          isActive={activeWindow === 'minesweeper'}
+          onFocus={() => focusWindow('minesweeper')}
+          onClose={() => closeWindow('minesweeper')}
+          onMinimize={() => minimizeWindow('minesweeper')}
+          isMinimized={windows.minesweeper.minimized}
+        >
+          <MinesweeperApp lang={lang} />
+        </Window>
+      )}
+
+      {/* Pac-Man Project Window */}
+      {windows.pacman.open && (
+        <Window 
+          title="PacMan.exe" 
+          defaultPosition={windowPositions.pacman} 
+          width="w-[380px]" 
+          zIndex={zIndices.pacman}
+          isActive={activeWindow === 'pacman'}
+          onFocus={() => focusWindow('pacman')}
+          onClose={() => closeWindow('pacman')}
+          onMinimize={() => minimizeWindow('pacman')}
+          isMinimized={windows.pacman.minimized}
+        >
+          <PacmanApp lang={lang} />
+        </Window>
+      )}
+
       {/* Taskbar */}
       <div className="absolute bottom-0 left-0 right-0 h-10 bg-win-gray border-t-2 border-white shadow-win-out flex items-center px-1 z-50">
         <button className="h-8 px-2 flex items-center gap-2 bg-win-gray border-2 shadow-win-out active:shadow-win-in font-bold mr-2 text-black cursor-pointer">
@@ -473,6 +651,41 @@ function App() {
               onClick={() => toggleTaskbarWindow('contact')} 
             />
           )}
+          {windows.recycleBin.open && (
+            <TaskbarBtn 
+              title="Recycle Bin" 
+              active={activeWindow === 'recycleBin' && !windows.recycleBin.minimized} 
+              onClick={() => toggleTaskbarWindow('recycleBin')} 
+            />
+          )}
+          {windows.winamp.open && (
+            <TaskbarBtn 
+              title="WinAmp.exe" 
+              active={activeWindow === 'winamp' && !windows.winamp.minimized} 
+              onClick={() => toggleTaskbarWindow('winamp')} 
+            />
+          )}
+          {windows.bot.open && (
+            <TaskbarBtn 
+              title="Bot.exe" 
+              active={activeWindow === 'bot' && !windows.bot.minimized} 
+              onClick={() => toggleTaskbarWindow('bot')} 
+            />
+          )}
+          {windows.minesweeper.open && (
+            <TaskbarBtn 
+              title="Minesweeper.exe" 
+              active={activeWindow === 'minesweeper' && !windows.minesweeper.minimized} 
+              onClick={() => toggleTaskbarWindow('minesweeper')} 
+            />
+          )}
+          {windows.pacman.open && (
+            <TaskbarBtn 
+              title="PacMan.exe" 
+              active={activeWindow === 'pacman' && !windows.pacman.minimized} 
+              onClick={() => toggleTaskbarWindow('pacman')} 
+            />
+          )}
         </div>
         <div className="flex items-center gap-2">
           {/* Language Toggle */}
@@ -492,7 +705,7 @@ function App() {
   );
 }
 
-function DesktopIcon({ name, icon, isSelected, onSelect, onOpen }) {
+function DesktopIcon({ name, icon, tag, isSelected, onSelect, onOpen }) {
   const handleClick = (e) => {
     e.stopPropagation();
     if (isSelected) {
@@ -509,14 +722,19 @@ function DesktopIcon({ name, icon, isSelected, onSelect, onOpen }) {
 
   return (
     <div 
-      className="flex flex-col items-center w-20 cursor-pointer select-none group" 
+      className="flex flex-col items-center w-22 cursor-pointer select-none group relative" 
       onClick={handleClick} 
       onDoubleClick={handleDoubleClick}
     >
-      <div className={`text-4xl mb-1 drop-shadow-md transition-transform ${isSelected ? 'scale-105' : 'group-hover:scale-105'}`}>
+      <div className={`text-4xl mb-1 drop-shadow-md transition-transform relative ${isSelected ? 'scale-105' : 'group-hover:scale-105'}`}>
         {icon}
+        {tag && (
+          <span className="absolute -top-1 -right-3 text-[9px] font-bold bg-amber-300 text-black px-1 rounded-sm border border-black shadow">
+            {tag}
+          </span>
+        )}
       </div>
-      <div className={`text-center text-sm px-1 leading-tight ${
+      <div className={`text-center text-xs px-1 leading-tight break-all ${
         isSelected 
           ? 'bg-[#000080] text-white outline-1 outline-dotted outline-yellow-300' 
           : 'bg-black/50 text-white'
